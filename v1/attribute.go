@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"de-entity-service/utils"
+	"dynexpr/utils"
 	"errors"
 	"strings"
 
@@ -112,6 +112,10 @@ func (da *DynamoAttribute[T]) AndWithCondition() func(conditionBuilder expressio
 // AddValue adds a value which will be used to update `this` attributes
 func (da *DynamoAttribute[T]) AddValue(operation DynamoOperation, value any) {
 	da.operation = operation
+
+	// TODO: time.Time will automatically convert to string
+	// add a switch case hee and allow clients to specify
+	// which data type they want time to be in
 	da.value = value
 }
 

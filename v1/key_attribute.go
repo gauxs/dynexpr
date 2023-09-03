@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"de-entity-service/utils"
+	"dynexpr/utils"
 	"errors"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"

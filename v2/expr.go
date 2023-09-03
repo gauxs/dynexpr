@@ -1,7 +1,7 @@
 package v2
 
 import (
-	"de-entity-service/utils"
+	"dynexpr/utils"
 	"errors"
 	"strconv"
 	"strings"
