@@ -1,12 +1,14 @@
 module dynexpr
 
-go 1.18
+go 1.22
 
 require (
 	github.com/aws/aws-sdk-go v1.45.2
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.4.66
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.21.5
+	github.com/mailru/easyjson v0.7.7
 	github.com/stretchr/testify v1.8.4
+	go.uber.org/zap v1.26.0
 )
 
 require (
@@ -16,7 +18,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
