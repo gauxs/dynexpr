@@ -1,6 +1,9 @@
 package data
 
-import "time"
+import (
+	"net/http"
+	"time"
+)
 
 type BankAccountType int
 
@@ -12,6 +15,7 @@ const (
 type BankAccount struct {
 	BankAccountNumber *int             `json:"bank_account_number,omitempty" dynamodbav:"bank_account_number,omitempty"`
 	AccountType       *BankAccountType `json:"account_type,omitempty" dynamodbav:"account_type,omitempty"`
+	OutsidePkg        http.Client
 }
 
 type BankDetails struct {
