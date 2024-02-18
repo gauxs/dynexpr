@@ -1,9 +1,8 @@
 package data
 
 import (
+	"net"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 type BankAccountType int
@@ -16,7 +15,7 @@ const (
 type BankAccount struct {
 	BankAccountNumber *int             `json:"bank_account_number,omitempty" dynamodbav:"bank_account_number,omitempty"`
 	AccountType       *BankAccountType `json:"account_type,omitempty" dynamodbav:"account_type,omitempty"`
-	OutsidePkg        zap.Config
+	OutsidePkg        net.AddrError
 }
 
 type BankDetails struct {

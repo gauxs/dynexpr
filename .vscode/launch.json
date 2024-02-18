@@ -9,8 +9,9 @@
             "name": "Launch file",
             "type": "go",
             "request": "launch",
-            "mode": "exec",
-            "program": "${file}"
+            "mode": "auto",
+            "program": "${file}",
+            "args": ["./codegen/test/data/person.go"]
         }
 
     ]
