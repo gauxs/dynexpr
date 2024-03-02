@@ -2,13 +2,37 @@ package data
 
 import (
 	"bytes"
+	"encoding"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"path"
 	"reflect"
+	"strconv"
+	"strings"
+	"unicode"
+
+	"github.com/mailru/easyjson"
 )
+
+// fieldTags contains parsed version of json struct field tags.
+type fieldTags struct {
+	name string
+
+	omit        bool
+	omitEmpty   bool
+	noOmitEmpty bool
+	asString    bool
+	required    bool
+	intern      bool
+	noCopy      bool
+}
 
 type Generator struct {
 	out *bytes.Buffer
+
+	pkgPath string
 
 	// package path to local alias map for tracking imports
 	imports map[string]string
@@ -96,15 +120,521 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		return fmt.Errorf("cannot generate encoder/decoder for %v, not a struct type", t)
 	}
 
+	typ := g.getType(t)
+	fmt.Println("Type: " + typ)
+
 	// get struct name
+	structName := t.Name()
+	fmt.Println(structName)
+
+	// Init embedded pointer fields.
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if !f.Anonymous || f.Type.Kind() != reflect.Ptr {
+			continue
+		}
+		fmt.Fprintln(g.out, "  out."+f.Name+" = new("+g.getType(f.Type.Elem())+")")
+	}
+
 	// get structs field names
+	fs, err := getStructFields(t)
+	if err != nil {
+		return fmt.Errorf("cannot generate decoder for %v: %v", t, err)
+	}
+
+	for _, f := range fs {
+		g.genRequiredFieldSet(t, f)
+	}
+
 	// get structs data type
 	// add new imports and aliases
 	// generate code
 	// generate header
+
+	for _, f := range fs {
+		if err := g.genStructFieldDecoder(t, f); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
+// getType return the textual type name of given type that can be used in generated code.
+func (g *Generator) getType(t reflect.Type) string {
+	if t.Name() == "" {
+		switch t.Kind() {
+		case reflect.Ptr:
+			return "*" + g.getType(t.Elem())
+		case reflect.Slice:
+			return "[]" + g.getType(t.Elem())
+		case reflect.Array:
+			return "[" + strconv.Itoa(t.Len()) + "]" + g.getType(t.Elem())
+		case reflect.Map:
+			return "map[" + g.getType(t.Key()) + "]" + g.getType(t.Elem())
+		}
+	}
+
+	if t.Name() == "" || t.PkgPath() == "" {
+		if t.Kind() == reflect.Struct {
+			// the fields of an anonymous struct can have named types,
+			// and t.String() will not be sufficient because it does not
+			// remove the package name when it matches g.pkgPath.
+			// so we convert by hand
+			nf := t.NumField()
+			lines := make([]string, 0, nf)
+			for i := 0; i < nf; i++ {
+				f := t.Field(i)
+				var line string
+				if !f.Anonymous {
+					line = f.Name + " "
+				} // else the field is anonymous (an embedded type)
+				line += g.getType(f.Type)
+				t := f.Tag
+				if t != "" {
+					line += " " + escapeTag(t)
+				}
+				lines = append(lines, line)
+			}
+			return strings.Join([]string{"struct { ", strings.Join(lines, "; "), " }"}, "")
+		}
+		return t.String()
+	} else if t.PkgPath() == g.pkgPath {
+		return t.Name()
+	}
+	return g.pkgAlias(t.PkgPath()) + "." + t.Name()
+}
+
+// escape a struct field tag string back to source code
+func escapeTag(tag reflect.StructTag) string {
+	t := string(tag)
+	if strings.ContainsRune(t, '`') {
+		// there are ` in the string; we can't use ` to enclose the string
+		return strconv.Quote(t)
+	}
+	return "`" + t + "`"
+}
+
+// pkgAlias creates and returns and import alias for a given package.
+func (g *Generator) pkgAlias(pkgPath string) string {
+	pkgPath = fixPkgPathVendoring(pkgPath)
+	if alias := g.imports[pkgPath]; alias != "" {
+		return alias
+	}
+
+	for i := 0; ; i++ {
+		alias := fixAliasName(path.Base(pkgPath))
+		if i > 0 {
+			alias += fmt.Sprint(i)
+		}
+
+		exists := false
+		for _, v := range g.imports {
+			if v == alias {
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			g.imports[pkgPath] = alias
+			return alias
+		}
+	}
+}
+
+// fixes vendored paths
+func fixPkgPathVendoring(pkgPath string) string {
+	const vendor = "/vendor/"
+	if i := strings.LastIndex(pkgPath, vendor); i != -1 {
+		return pkgPath[i+len(vendor):]
+	}
+	return pkgPath
+}
+
+func fixAliasName(alias string) string {
+	alias = strings.Replace(
+		strings.Replace(alias, ".", "_", -1),
+		"-",
+		"_",
+		-1,
+	)
+
+	if alias[0] == 'v' { // to void conflicting with var names, say v1
+		alias = "_" + alias
+	}
+	return alias
+}
+
+func getStructFields(t reflect.Type) ([]reflect.StructField, error) {
+	if t.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("got %v; expected a struct", t)
+	}
+
+	var efields []reflect.StructField
+	var fields []reflect.StructField
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		tags := parseFieldTags(f)
+		if !f.Anonymous || tags.name != "" {
+			continue
+		}
+
+		t1 := f.Type
+		if t1.Kind() == reflect.Ptr {
+			t1 = t1.Elem()
+		}
+
+		if t1.Kind() == reflect.Struct {
+			fs, err := getStructFields(t1)
+			if err != nil {
+				return nil, fmt.Errorf("error processing embedded field: %v", err)
+			}
+			efields = mergeStructFields(efields, fs)
+		} else if (t1.Kind() >= reflect.Bool && t1.Kind() < reflect.Complex128) || t1.Kind() == reflect.String {
+			if strings.Contains(f.Name, ".") || unicode.IsUpper([]rune(f.Name)[0]) {
+				fields = append(fields, f)
+			}
+		}
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		tags := parseFieldTags(f)
+		if f.Anonymous && tags.name == "" {
+			continue
+		}
+
+		c := []rune(f.Name)[0]
+		if unicode.IsUpper(c) {
+			fields = append(fields, f)
+		}
+	}
+	return mergeStructFields(efields, fields), nil
+}
+
+// parseFieldTags parses the json field tag into a structure.
+func parseFieldTags(f reflect.StructField) fieldTags {
+	var ret fieldTags
+
+	for i, s := range strings.Split(f.Tag.Get("json"), ",") {
+		switch {
+		case i == 0 && s == "-":
+			ret.omit = true
+		case i == 0:
+			ret.name = s
+		case s == "omitempty":
+			ret.omitEmpty = true
+		case s == "!omitempty":
+			ret.noOmitEmpty = true
+		case s == "string":
+			ret.asString = true
+		case s == "required":
+			ret.required = true
+		case s == "intern":
+			ret.intern = true
+		case s == "nocopy":
+			ret.noCopy = true
+		}
+	}
+
+	return ret
+}
+
+func mergeStructFields(fields1, fields2 []reflect.StructField) (fields []reflect.StructField) {
+	used := map[string]bool{}
+	for _, f := range fields2 {
+		used[f.Name] = true
+		fields = append(fields, f)
+	}
+
+	for _, f := range fields1 {
+		if !used[f.Name] {
+			fields = append(fields, f)
+		}
+	}
+	return
+}
+
+func (g *Generator) genRequiredFieldSet(t reflect.Type, f reflect.StructField) {
+	tags := parseFieldTags(f)
+
+	if !tags.required {
+		return
+	}
+
+	fmt.Fprintf(g.out, "var %sSet bool\n", f.Name)
+}
+
+func (g *Generator) genStructFieldDecoder(t reflect.Type, f reflect.StructField) error {
+	jsonName := "" //g.fieldNamer.GetJSONFieldName(t, f)
+	tags := parseFieldTags(f)
+
+	if tags.omit {
+		return nil
+	}
+	if tags.intern && tags.noCopy {
+		return errors.New("Mutually exclusive tags are specified: 'intern' and 'nocopy'")
+	}
+
+	fmt.Fprintf(g.out, "    case %q:\n", jsonName)
+	if err := g.genTypeDecoder(f.Type, "out."+f.Name, tags, 3); err != nil {
+		return err
+	}
+
+	if tags.required {
+		fmt.Fprintf(g.out, "%sSet = true\n", f.Name)
+	}
+
+	return nil
+}
+
+// genTypeDecoder generates decoding code for the type t, but uses unmarshaler interface if implemented by t.
+func (g *Generator) genTypeDecoder(t reflect.Type, out string, tags fieldTags, indent int) error {
+	ws := strings.Repeat("  ", indent)
+
+	unmarshalerIface := reflect.TypeOf((*easyjson.Unmarshaler)(nil)).Elem()
+	if reflect.PtrTo(t).Implements(unmarshalerIface) {
+		fmt.Fprintln(g.out, ws+"("+out+").UnmarshalEasyJSON(in)")
+		return nil
+	}
+
+	unmarshalerIface = reflect.TypeOf((*json.Unmarshaler)(nil)).Elem()
+	if reflect.PtrTo(t).Implements(unmarshalerIface) {
+		fmt.Fprintln(g.out, ws+"if data := in.Raw(); in.Ok() {")
+		fmt.Fprintln(g.out, ws+"  in.AddError( ("+out+").UnmarshalJSON(data) )")
+		fmt.Fprintln(g.out, ws+"}")
+		return nil
+	}
+
+	unmarshalerIface = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	if reflect.PtrTo(t).Implements(unmarshalerIface) {
+		fmt.Fprintln(g.out, ws+"if data := in.UnsafeBytes(); in.Ok() {")
+		fmt.Fprintln(g.out, ws+"  in.AddError( ("+out+").UnmarshalText(data) )")
+		fmt.Fprintln(g.out, ws+"}")
+		return nil
+	}
+
+	err := g.genTypeDecoderNoCheck(t, out, tags, indent)
+	return err
+}
+
+// genTypeDecoderNoCheck generates decoding code for the type t.
+func (g *Generator) genTypeDecoderNoCheck(t reflect.Type, out string, tags fieldTags, indent int) error {
+	ws := strings.Repeat("  ", indent)
+	// Check whether type is primitive, needs to be done after interface check.
+	if dec := customDecoders[t.String()]; dec != "" {
+		fmt.Fprintln(g.out, ws+out+" = "+dec)
+		return nil
+	} else if dec := primitiveStringDecoders[t.Kind()]; dec != "" && tags.asString {
+		if tags.intern && t.Kind() == reflect.String {
+			dec = "in.StringIntern()"
+		}
+		fmt.Fprintln(g.out, ws+out+" = "+g.getType(t)+"("+dec+")")
+		return nil
+	} else if dec := primitiveDecoders[t.Kind()]; dec != "" {
+		if tags.intern && t.Kind() == reflect.String {
+			dec = "in.StringIntern()"
+		}
+		if tags.noCopy && t.Kind() == reflect.String {
+			dec = "in.UnsafeString()"
+		}
+		fmt.Fprintln(g.out, ws+out+" = "+g.getType(t)+"("+dec+")")
+		return nil
+	}
+
+	switch t.Kind() {
+	case reflect.Slice:
+		tmpVar := g.uniqueVarName()
+		elem := t.Elem()
+
+		if elem.Kind() == reflect.Uint8 && elem.Name() == "uint8" {
+			fmt.Fprintln(g.out, ws+"if in.IsNull() {")
+			fmt.Fprintln(g.out, ws+"  in.Skip()")
+			fmt.Fprintln(g.out, ws+"  "+out+" = nil")
+			fmt.Fprintln(g.out, ws+"} else {")
+			if g.simpleBytes {
+				fmt.Fprintln(g.out, ws+"  "+out+" = []byte(in.String())")
+			} else {
+				fmt.Fprintln(g.out, ws+"  "+out+" = in.Bytes()")
+			}
+
+			fmt.Fprintln(g.out, ws+"}")
+
+		} else {
+
+			capacity := 1
+			if elem.Size() > 0 {
+				capacity = minSliceBytes / int(elem.Size())
+			}
+
+			fmt.Fprintln(g.out, ws+"if in.IsNull() {")
+			fmt.Fprintln(g.out, ws+"  in.Skip()")
+			fmt.Fprintln(g.out, ws+"  "+out+" = nil")
+			fmt.Fprintln(g.out, ws+"} else {")
+			fmt.Fprintln(g.out, ws+"  in.Delim('[')")
+			fmt.Fprintln(g.out, ws+"  if "+out+" == nil {")
+			fmt.Fprintln(g.out, ws+"    if !in.IsDelim(']') {")
+			fmt.Fprintln(g.out, ws+"      "+out+" = make("+g.getType(t)+", 0, "+fmt.Sprint(capacity)+")")
+			fmt.Fprintln(g.out, ws+"    } else {")
+			fmt.Fprintln(g.out, ws+"      "+out+" = "+g.getType(t)+"{}")
+			fmt.Fprintln(g.out, ws+"    }")
+			fmt.Fprintln(g.out, ws+"  } else { ")
+			fmt.Fprintln(g.out, ws+"    "+out+" = ("+out+")[:0]")
+			fmt.Fprintln(g.out, ws+"  }")
+			fmt.Fprintln(g.out, ws+"  for !in.IsDelim(']') {")
+			fmt.Fprintln(g.out, ws+"    var "+tmpVar+" "+g.getType(elem))
+
+			if err := g.genTypeDecoder(elem, tmpVar, tags, indent+2); err != nil {
+				return err
+			}
+
+			fmt.Fprintln(g.out, ws+"    "+out+" = append("+out+", "+tmpVar+")")
+			fmt.Fprintln(g.out, ws+"    in.WantComma()")
+			fmt.Fprintln(g.out, ws+"  }")
+			fmt.Fprintln(g.out, ws+"  in.Delim(']')")
+			fmt.Fprintln(g.out, ws+"}")
+		}
+
+	case reflect.Array:
+		iterVar := g.uniqueVarName()
+		elem := t.Elem()
+
+		if elem.Kind() == reflect.Uint8 && elem.Name() == "uint8" {
+			fmt.Fprintln(g.out, ws+"if in.IsNull() {")
+			fmt.Fprintln(g.out, ws+"  in.Skip()")
+			fmt.Fprintln(g.out, ws+"} else {")
+			fmt.Fprintln(g.out, ws+"  copy("+out+"[:], in.Bytes())")
+			fmt.Fprintln(g.out, ws+"}")
+
+		} else {
+
+			length := t.Len()
+
+			fmt.Fprintln(g.out, ws+"if in.IsNull() {")
+			fmt.Fprintln(g.out, ws+"  in.Skip()")
+			fmt.Fprintln(g.out, ws+"} else {")
+			fmt.Fprintln(g.out, ws+"  in.Delim('[')")
+			fmt.Fprintln(g.out, ws+"  "+iterVar+" := 0")
+			fmt.Fprintln(g.out, ws+"  for !in.IsDelim(']') {")
+			fmt.Fprintln(g.out, ws+"    if "+iterVar+" < "+fmt.Sprint(length)+" {")
+
+			if err := g.genTypeDecoder(elem, "("+out+")["+iterVar+"]", tags, indent+3); err != nil {
+				return err
+			}
+
+			fmt.Fprintln(g.out, ws+"      "+iterVar+"++")
+			fmt.Fprintln(g.out, ws+"    } else {")
+			fmt.Fprintln(g.out, ws+"      in.SkipRecursive()")
+			fmt.Fprintln(g.out, ws+"    }")
+			fmt.Fprintln(g.out, ws+"    in.WantComma()")
+			fmt.Fprintln(g.out, ws+"  }")
+			fmt.Fprintln(g.out, ws+"  in.Delim(']')")
+			fmt.Fprintln(g.out, ws+"}")
+		}
+
+	case reflect.Struct:
+		dec := g.getDecoderName(t)
+		g.addType(t)
+
+		if len(out) > 0 && out[0] == '*' {
+			// NOTE: In order to remove an extra reference to a pointer
+			fmt.Fprintln(g.out, ws+dec+"(in, "+out[1:]+")")
+		} else {
+			fmt.Fprintln(g.out, ws+dec+"(in, &"+out+")")
+		}
+
+	case reflect.Ptr:
+		fmt.Fprintln(g.out, ws+"if in.IsNull() {")
+		fmt.Fprintln(g.out, ws+"  in.Skip()")
+		fmt.Fprintln(g.out, ws+"  "+out+" = nil")
+		fmt.Fprintln(g.out, ws+"} else {")
+		fmt.Fprintln(g.out, ws+"  if "+out+" == nil {")
+		fmt.Fprintln(g.out, ws+"    "+out+" = new("+g.getType(t.Elem())+")")
+		fmt.Fprintln(g.out, ws+"  }")
+
+		if err := g.genTypeDecoder(t.Elem(), "*"+out, tags, indent+1); err != nil {
+			return err
+		}
+
+		fmt.Fprintln(g.out, ws+"}")
+
+	case reflect.Map:
+		key := t.Key()
+		keyDec, ok := primitiveStringDecoders[key.Kind()]
+		if !ok && !hasCustomUnmarshaler(key) {
+			return fmt.Errorf("map type %v not supported: only string and integer keys and types implementing json.Unmarshaler are allowed", key)
+		} // else assume the caller knows what they are doing and that the custom unmarshaler performs the translation from string or integer keys to the key type
+		elem := t.Elem()
+		tmpVar := g.uniqueVarName()
+		keepEmpty := tags.required || tags.noOmitEmpty || (!g.omitEmpty && !tags.omitEmpty)
+
+		fmt.Fprintln(g.out, ws+"if in.IsNull() {")
+		fmt.Fprintln(g.out, ws+"  in.Skip()")
+		fmt.Fprintln(g.out, ws+"} else {")
+		fmt.Fprintln(g.out, ws+"  in.Delim('{')")
+		if !keepEmpty {
+			fmt.Fprintln(g.out, ws+"  if !in.IsDelim('}') {")
+		}
+		fmt.Fprintln(g.out, ws+"  "+out+" = make("+g.getType(t)+")")
+		if !keepEmpty {
+			fmt.Fprintln(g.out, ws+"  } else {")
+			fmt.Fprintln(g.out, ws+"  "+out+" = nil")
+			fmt.Fprintln(g.out, ws+"  }")
+		}
+
+		fmt.Fprintln(g.out, ws+"  for !in.IsDelim('}') {")
+		// NOTE: extra check for TextUnmarshaler. It overrides default methods.
+		if reflect.PtrTo(key).Implements(reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()) {
+			fmt.Fprintln(g.out, ws+"    var key "+g.getType(key))
+			fmt.Fprintln(g.out, ws+"if data := in.UnsafeBytes(); in.Ok() {")
+			fmt.Fprintln(g.out, ws+"  in.AddError(key.UnmarshalText(data) )")
+			fmt.Fprintln(g.out, ws+"}")
+		} else if keyDec != "" {
+			fmt.Fprintln(g.out, ws+"    key := "+g.getType(key)+"("+keyDec+")")
+		} else {
+			fmt.Fprintln(g.out, ws+"    var key "+g.getType(key))
+			if err := g.genTypeDecoder(key, "key", tags, indent+2); err != nil {
+				return err
+			}
+		}
+
+		fmt.Fprintln(g.out, ws+"    in.WantColon()")
+		fmt.Fprintln(g.out, ws+"    var "+tmpVar+" "+g.getType(elem))
+
+		if err := g.genTypeDecoder(elem, tmpVar, tags, indent+2); err != nil {
+			return err
+		}
+
+		fmt.Fprintln(g.out, ws+"    ("+out+")[key] = "+tmpVar)
+		fmt.Fprintln(g.out, ws+"    in.WantComma()")
+		fmt.Fprintln(g.out, ws+"  }")
+		fmt.Fprintln(g.out, ws+"  in.Delim('}')")
+		fmt.Fprintln(g.out, ws+"}")
+
+	case reflect.Interface:
+		if t.NumMethod() != 0 {
+			if g.interfaceIsEasyjsonUnmarshaller(t) {
+				fmt.Fprintln(g.out, ws+out+".UnmarshalEasyJSON(in)")
+			} else if g.interfaceIsJsonUnmarshaller(t) {
+				fmt.Fprintln(g.out, ws+out+".UnmarshalJSON(in.Raw())")
+			} else {
+				return fmt.Errorf("interface type %v not supported: only interface{} and easyjson/json Unmarshaler are allowed", t)
+			}
+		} else {
+			fmt.Fprintln(g.out, ws+"if m, ok := "+out+".(easyjson.Unmarshaler); ok {")
+			fmt.Fprintln(g.out, ws+"m.UnmarshalEasyJSON(in)")
+			fmt.Fprintln(g.out, ws+"} else if m, ok := "+out+".(json.Unmarshaler); ok {")
+			fmt.Fprintln(g.out, ws+"_ = m.UnmarshalJSON(in.Raw())")
+			fmt.Fprintln(g.out, ws+"} else {")
+			fmt.Fprintln(g.out, ws+"  "+out+" = in.Interface()")
+			fmt.Fprintln(g.out, ws+"}")
+		}
+	default:
+		return fmt.Errorf("don't know how to decode %v", t)
+	}
+	return nil
+
+}
 func NewGenerator() *Generator {
 	return &Generator{
 		imports:   make(map[string]string),

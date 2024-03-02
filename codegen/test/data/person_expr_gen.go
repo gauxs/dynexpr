@@ -22,4 +22,5 @@ func Generate() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	fmt.Println("Done")
 }
