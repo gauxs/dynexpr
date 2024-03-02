@@ -1,11 +1,7 @@
 package main
 
 import (
-	"dynexpr/codegen"
-	"flag"
-	"fmt"
-	"os"
-	"path/filepath"
+	"dynexpr/codegen/test/data"
 
 	// Reference the gen package to be friendly to vendoring tools,
 	// as it is an indirect dependency.
@@ -14,24 +10,25 @@ import (
 )
 
 func main() {
-	flag.Parse()
+	// flag.Parse()
 
-	files := flag.Args()
+	// files := flag.Args()
 
-	gofile := os.Getenv("GOFILE")
-	gofile = filepath.Dir(gofile)
+	// gofile := os.Getenv("GOFILE")
+	// gofile = filepath.Dir(gofile)
 
-	if len(files) == 0 && gofile != "" {
-		files = []string{gofile}
-	} else if len(files) == 0 {
-		flag.Usage()
-		os.Exit(1)
-	}
+	// if len(files) == 0 && gofile != "" {
+	// 	files = []string{gofile}
+	// } else if len(files) == 0 {
+	// 	flag.Usage()
+	// 	os.Exit(1)
+	// }
 
-	for _, fname := range files {
-		if err := codegen.Generate(fname); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-	}
+	// for _, fname := range files {
+	// 	if err := codegen.Generate(fname); err != nil {
+	// 		fmt.Fprintln(os.Stderr, err)
+	// 		os.Exit(1)
+	// 	}
+	// }
+	data.Generate()
 }
