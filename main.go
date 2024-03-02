@@ -5,14 +5,11 @@ import (
 	// Reference the gen package to be friendly to vendoring tools,
 	// as it is an indirect dependency.
 	// (The temporary bootstrapping code uses it.)
+	"dynexpr/codegen/test/data"
+
 	_ "github.com/mailru/easyjson/gen"
 
 	"fmt"
-	"os"
-
-	"github.com/mailru/easyjson/gen"
-
-	pkg "dynexpr/codegen/test/data"
 )
 
 func main() {
@@ -37,18 +34,18 @@ func main() {
 	// 	}
 	// }
 
-	// data.Generate()
+	data.Generate()
 
-	g := gen.NewGenerator("person_easyjson.go")
-	g.SetPkg("data", "dynexpr/codegen/test/data")
-	g.Add(pkg.EasyJSON_exporter_BankAccount(nil))
-	g.Add(pkg.EasyJSON_exporter_BankDetails(nil))
-	g.Add(pkg.EasyJSON_exporter_Child(nil))
-	g.Add(pkg.EasyJSON_exporter_FamilyDetail(nil))
-	g.Add(pkg.EasyJSON_exporter_Person(nil))
-	if err := g.Run(os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	// g := gen.NewGenerator("person_easyjson.go")
+	// g.SetPkg("data", "dynexpr/codegen/test/data")
+	// g.Add(pkg.EasyJSON_exporter_BankAccount(nil))
+	// g.Add(pkg.EasyJSON_exporter_BankDetails(nil))
+	// g.Add(pkg.EasyJSON_exporter_Child(nil))
+	// g.Add(pkg.EasyJSON_exporter_FamilyDetail(nil))
+	// g.Add(pkg.EasyJSON_exporter_Person(nil))
+	// if err := g.Run(os.Stdout); err != nil {
+	// 	fmt.Fprintln(os.Stderr, err)
+	// 	os.Exit(1)
+	// }
 	fmt.Println("DDD")
 }
