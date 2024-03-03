@@ -33,10 +33,10 @@ type FamilyDetail struct {
 }
 
 type Person struct {
-	// PK            *string       `json:"pk,omitempty" dynamodbav:"pk,omitempty"`
-	// SK            *string       `json:"sk,omitempty" dynamodbav:"sk,omitempty"`
-	// Name          *string       `json:"name,omitempty" dynamodbav:"name,omitempty"`
-	BankDetails *BankDetails `json:"bank_details,omitempty" dynamodbav:"bank_details,omitempty"`
-	// FamilyDetails *FamilyDetail `json:"family_details,omitempty" dynamodbav:"family_details,omitempty"`
-	// PhoneNos      *[]*string    `json:"phone_nos,omitempty" dynamodbav:"phone_nos,omitempty,omitemptyelem"` // This will be a list
+	PK            *string       `json:"pk,omitempty" dynamodbav:"pk,omitempty"`
+	SK            *string       `json:"sk,omitempty" dynamodbav:"sk,omitempty"`
+	Name          *string       `json:"name,omitempty" dynamodbav:"name,omitempty"`
+	BankDetailsss *BankDetails  `json:"bank_details,omitempty" dynamodbav:"bank_details,omitempty"`
+	FamilyDetails *FamilyDetail `json:"family_details,omitempty" dynamodbav:"family_details,omitempty"`
+	PhoneNos      *[]*string    `json:"phone_nos,omitempty" dynamodbav:"phone_nos,omitempty,omitemptyelem"` // This will be a list
 }

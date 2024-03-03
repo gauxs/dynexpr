@@ -20,6 +20,8 @@ import (
 type fieldTags struct {
 	name string
 
+	dynExprPK   bool
+	dynExprSK   bool
 	omit        bool
 	omitEmpty   bool
 	noOmitEmpty bool
@@ -102,6 +104,7 @@ func (g *Generator) Run(out io.Writer) error {
 
 	// TODO
 	// g.printHeader()
+	// fmt.Println(string(g.out.Bytes()))
 	_, err := out.Write(g.out.Bytes())
 	return err
 }
@@ -127,14 +130,16 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 	structName := t.Name()
 	fmt.Println(structName)
 
+	fmt.Fprintln(g.out, "type "+structName+"_ExpressionBuilder struct {")
 	// Init embedded pointer fields.
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		if !f.Anonymous || f.Type.Kind() != reflect.Ptr {
-			continue
-		}
-		fmt.Fprintln(g.out, "  out."+f.Name+" = new("+g.getType(f.Type.Elem())+")")
-	}
+	// for i := 0; i < t.NumField(); i++ {
+	// 	f := t.Field(i)
+	// 	if !f.Anonymous || f.Type.Kind() != reflect.Ptr {
+	// 		continue
+	// 	}
+
+	// 	fmt.Fprintln(g.out, "  out."+f.Name+" = new("+g.getType(f.Type.Elem())+")")
+	// }
 
 	// get structs field names
 	fs, err := getStructFields(t)
@@ -143,24 +148,54 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 	}
 
 	for _, f := range fs {
-		g.genRequiredFieldSet(t, f)
+		fmt.Println("Field Name: " + f.Name)
+		fmt.Println("Field Type: " + f.Type.String())
+		fieldTags := parseFieldTags(f)
+		// fmt.Println(fmt.Sprintf("Field Tags: %v", fieldTags))
+
+		// if json tag has dynexpr:"partionKey" this is a partition key attribute or
+		// if json tag has dynexpr:"partionKey" this is a partition key attribute
+		// and we use DynamoKeyAttribute
+		if fieldTags.dynExprPK || fieldTags.dynExprSK {
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoKeyAttribute["+f.Type.String()+"]\t")
+		} else if f.Type.Kind() == reflect.Array || f.Type.Kind() == reflect.Slice { // if type is array/slice then we use DynamoListAttribute
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoListAttribute["+f.Type.String()+"]\t")
+		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
+			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
+		} else { // if type is struct or native then use DynamoAttribute
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoAttribute["+f.Type.String()+"]\t")
+		}
 	}
+	fmt.Fprintln(g.out, "}")
+
+	// this is easyjson specific
+	// for _, f := range fs {
+	// 	g.genRequiredFieldSet(t, f)
+	// }
 
 	// get structs data type
 	// add new imports and aliases
 	// generate code
 	// generate header
 
-	for _, f := range fs {
-		if err := g.genStructFieldDecoder(t, f); err != nil {
-			return err
-		}
-	}
+	// for _, f := range fs {
+	// 	if err := g.genStructFieldDecoder(t, f); err != nil {
+	// 		return err
+	// 	}
+	// }
+
+	// fsMarshal, _ := json.Marshal(fs)
+	// fmt.Println(string(fsMarshal))
+
+	fmt.Println()
 	return nil
 }
 
 // getType return the textual type name of given type that can be used in generated code.
 func (g *Generator) getType(t reflect.Type) string {
+	tjson, _ := json.Marshal(t)
+	fmt.Println(string(tjson))
+
 	if t.Name() == "" {
 		switch t.Kind() {
 		case reflect.Ptr:
@@ -334,6 +369,15 @@ func parseFieldTags(f reflect.StructField) fieldTags {
 			ret.intern = true
 		case s == "nocopy":
 			ret.noCopy = true
+		}
+	}
+
+	for _, s := range strings.Split(f.Tag.Get("dynexpr"), ",") {
+		switch {
+		case s == "partitionKey":
+			ret.dynExprPK = true
+		case s == "sortKey":
+			ret.dynExprSK = true
 		}
 	}
 
