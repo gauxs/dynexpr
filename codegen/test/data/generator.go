@@ -130,7 +130,8 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 	structName := t.Name()
 	fmt.Println(structName)
 
-	fmt.Fprintln(g.out, "type "+structName+"_ExpressionBuilder struct {")
+	expressionBldrStructName := structName + "_ExpressionBuilder"
+	fmt.Fprintln(g.out, "type "+expressionBldrStructName+" struct {")
 	// Init embedded pointer fields.
 	// for i := 0; i < t.NumField(); i++ {
 	// 	f := t.Field(i)
@@ -150,6 +151,7 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 	for _, f := range fs {
 		fmt.Println("Field Name: " + f.Name)
 		fmt.Println("Field Type: " + f.Type.String())
+		fmt.Println("Field Type Details: " + g.getType(f.Type))
 		fieldTags := parseFieldTags(f)
 		// fmt.Println(fmt.Sprintf("Field Tags: %v", fieldTags))
 
@@ -160,11 +162,50 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoKeyAttribute["+f.Type.String()+"]\t")
 		} else if f.Type.Kind() == reflect.Array || f.Type.Kind() == reflect.Slice { // if type is array/slice then we use DynamoListAttribute
 			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoListAttribute["+f.Type.String()+"]\t")
+		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice) {
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoListAttribute["+f.Type.Elem().Elem().String()+"]\t")
 		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
 			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
 		} else { // if type is struct or native then use DynamoAttribute
 			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoAttribute["+f.Type.String()+"]\t")
 		}
+	}
+	fmt.Fprintln(g.out, "}")
+
+	// generate function
+	fmt.Fprintln(g.out, "func (o *"+expressionBldrStructName+") BuildTree(name string) *DynamoAttribute[*"+expressionBldrStructName+"] {")
+	fmt.Fprintln(g.out, "\to = &"+expressionBldrStructName+"{}")
+	for _, f := range fs {
+		fmt.Println("Field Name: " + f.Name)
+		fmt.Println("Field Type: " + f.Type.String())
+		fmt.Println("Field Type Details: " + g.getType(f.Type))
+		fieldTags := parseFieldTags(f)
+		// fmt.Println(fmt.Sprintf("Field Tags: %v", fieldTags))
+
+		// if json tag has dynexpr:"partionKey" this is a partition key attribute or
+		// if json tag has dynexpr:"partionKey" this is a partition key attribute
+		// and we use DynamoKeyAttribute
+		if fieldTags.dynExprPK || fieldTags.dynExprSK {
+			fmt.Fprintln(g.out, "o."+f.Name+" = *NewDynamoKeyAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+		} else if f.Type.Kind() == reflect.Array || f.Type.Kind() == reflect.Slice { // if type is array/slice then we use DynamoListAttribute
+			fmt.Fprintln(g.out, "o."+f.Name+" = *NewDynamoListAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice) {
+			fmt.Fprintln(g.out, "o."+f.Name+" = *NewDynamoListAttribute["+f.Type.Elem().Elem().String()+"]().WithName(\""+fieldTags.name+"\")")
+		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
+			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
+		} else if f.Type.Kind() == reflect.Struct {
+			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+f.Type.String()+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
+		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) {
+			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+f.Type.Elem().String()+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
+		} else { // if type is struct or native then use DynamoAttribute
+			fmt.Fprintln(g.out, "o."+f.Name+" = *NewDynamoAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+		}
+	}
+	fmt.Fprintln(g.out, "\t return NewDynamoAttribute[*"+expressionBldrStructName+"]().")
+	fmt.Fprintln(g.out, "\t\tWithAccessReference(o).")
+	fmt.Fprintln(g.out, "\t\tWithName(name).")
+	for _, f := range fs {
+		fmt.Fprintln(g.out, "\t\tWithChildAttribute(&o."+f.Name+").")
 	}
 	fmt.Fprintln(g.out, "}")
 

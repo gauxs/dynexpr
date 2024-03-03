@@ -33,8 +33,8 @@ type FamilyDetail struct {
 }
 
 type Person struct {
-	PK            *string       `json:"pk,omitempty" dynamodbav:"pk,omitempty"`
-	SK            *string       `json:"sk,omitempty" dynamodbav:"sk,omitempty"`
+	PK            *string       `json:"pk,omitempty" dynamodbav:"pk,omitempty" dynexpr:"partitionKey"`
+	SK            *string       `json:"sk,omitempty" dynamodbav:"sk,omitempty" dynexpr:"sortKey"`
 	Name          *string       `json:"name,omitempty" dynamodbav:"name,omitempty"`
 	BankDetailsss *BankDetails  `json:"bank_details,omitempty" dynamodbav:"bank_details,omitempty"`
 	FamilyDetails *FamilyDetail `json:"family_details,omitempty" dynamodbav:"family_details,omitempty"`
