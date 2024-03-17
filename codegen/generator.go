@@ -17,6 +17,8 @@ import (
 	"github.com/mailru/easyjson"
 )
 
+const pkgDynexpr = "dynexpr/v1"
+
 // fieldTags contains parsed version of json struct field tags.
 type fieldTags struct {
 	name string
@@ -160,6 +162,8 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		// fmt.Println("Field Name: " + f.Name)
 		// fmt.Println("Field Type: " + f.Type.String())
 		// fmt.Println("Field Type Details: " + g.getType(f.Type))
+		// fmt.Println("PKG path: " + f.Type.PkgPath() + f.Type.Name() + "-" + f.Type.String())
+		g.getType(f.Type)
 		fieldTags := parseFieldTags(f)
 		// fmt.Println(fmt.Sprintf("Field Tags: %v", fieldTags))
 
@@ -167,21 +171,25 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		// if json tag has dynexpr:"partionKey" this is a partition key attribute
 		// and we use DynamoKeyAttribute
 		if fieldTags.dynExprPK || fieldTags.dynExprSK {
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoKeyAttribute["+f.Type.String()+"]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoKeyAttribute["+f.Type.String()+"]\t")
 		} else if f.Type.Kind() == reflect.Array || f.Type.Kind() == reflect.Slice { // if type is array/slice then we use DynamoListAttribute
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoListAttribute["+f.Type.String()+"]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoListAttribute["+f.Type.String()+"]\t")
 		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice) {
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoListAttribute["+f.Type.Elem().Elem().String()+"]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoListAttribute["+f.Type.Elem().Elem().String()+"]\t")
 		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
 			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
-		} else { // if type is struct or native then use DynamoAttribute
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tDynamoAttribute["+f.Type.String()+"]\t")
+		} else if f.Type.Kind() == reflect.Struct {
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+f.Type.String()+"_ExpressionBuilder]\t")
+		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) {
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+f.Type.String()+"_ExpressionBuilder]\t")
+		} else { // if type is native then use DynamoAttribute
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+f.Type.String()+"]\t")
 		}
 	}
 	fmt.Fprintln(g.out, "}")
 
 	// generate function
-	fmt.Fprintln(g.out, "func (o *"+expressionBldrStructName+") BuildTree(name string) *DynamoAttribute[*"+expressionBldrStructName+"] {")
+	fmt.Fprintln(g.out, "func (o *"+expressionBldrStructName+") BuildTree(name string) *dynexpr.DynamoAttribute[*"+expressionBldrStructName+"] {")
 	fmt.Fprintln(g.out, "\to = &"+expressionBldrStructName+"{}")
 	for _, f := range fs {
 		// fmt.Println("Field Name: " + f.Name)
@@ -194,22 +202,22 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		// if json tag has dynexpr:"partionKey" this is a partition key attribute
 		// and we use DynamoKeyAttribute
 		if fieldTags.dynExprPK || fieldTags.dynExprSK {
-			fmt.Fprintln(g.out, "o."+f.Name+" = *NewDynamoKeyAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoKeyAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Array || f.Type.Kind() == reflect.Slice { // if type is array/slice then we use DynamoListAttribute
-			fmt.Fprintln(g.out, "o."+f.Name+" = *NewDynamoListAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoListAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice) {
-			fmt.Fprintln(g.out, "o."+f.Name+" = *NewDynamoListAttribute["+f.Type.Elem().Elem().String()+"]().WithName(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoListAttribute["+f.Type.Elem().Elem().String()+"]().WithName(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
 			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
 		} else if f.Type.Kind() == reflect.Struct {
 			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+f.Type.String()+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) {
 			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+f.Type.Elem().String()+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
-		} else { // if type is struct or native then use DynamoAttribute
-			fmt.Fprintln(g.out, "o."+f.Name+" = *NewDynamoAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+		} else { // if type is native then use DynamoAttribute
+			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
 		}
 	}
-	fmt.Fprintln(g.out, "\t return NewDynamoAttribute[*"+expressionBldrStructName+"]().")
+	fmt.Fprintln(g.out, "\t return dynexpr.NewDynamoAttribute[*"+expressionBldrStructName+"]().")
 	fmt.Fprintln(g.out, "\t\tWithAccessReference(o).")
 	fmt.Fprintln(g.out, "\t\tWithName(name).")
 	for idx, f := range fs {
@@ -247,8 +255,8 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 
 // getType return the textual type name of given type that can be used in generated code.
 func (g *Generator) getType(t reflect.Type) string {
-	tjson, _ := json.Marshal(t)
-	fmt.Println(string(tjson))
+	// tjson, _ := json.Marshal(t)
+	// fmt.Println(string(tjson))
 
 	if t.Name() == "" {
 		switch t.Kind() {
@@ -777,7 +785,9 @@ func (g *Generator) printHeader() {
 
 func NewGenerator() *Generator {
 	return &Generator{
-		imports:   make(map[string]string),
+		imports: map[string]string{
+			pkgDynexpr: "dynexpr",
+		},
 		typesSeen: make(map[reflect.Type]bool),
 	}
 }
