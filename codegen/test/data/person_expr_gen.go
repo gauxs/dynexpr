@@ -13,6 +13,7 @@ type Dynexpr_exporter_Person *Person
 
 func Generate() {
 	g := NewGenerator()
+	g.SetPkg("data", "dynexpr/codegen/test/data")
 	g.Add(Dynexpr_exporter_BankAccount(nil))
 	g.Add(Dynexpr_exporter_BankDetails(nil))
 	g.Add(Dynexpr_exporter_Child(nil))
