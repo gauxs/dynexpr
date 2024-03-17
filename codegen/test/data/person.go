@@ -15,7 +15,7 @@ const (
 type BankAccount struct {
 	// BankAccountNumber *int             `json:"bank_account_number,omitempty" dynamodbav:"bank_account_number,omitempty"`
 	// AccountType       *BankAccountType `json:"account_type,omitempty" dynamodbav:"account_type,omitempty"`
-	OutsidePkg net.AddrError
+	OutsidePkg net.AddrError `json:"add_err,omitempty" dynamodbav:"add_err,omitempty"`
 }
 
 type BankDetails struct {

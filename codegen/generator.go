@@ -162,8 +162,8 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		// fmt.Println("Field Name: " + f.Name)
 		// fmt.Println("Field Type: " + f.Type.String())
 		// fmt.Println("Field Type Details: " + g.getType(f.Type))
-		// fmt.Println("PKG path: " + f.Type.PkgPath() + f.Type.Name() + "-" + f.Type.String())
-		// fmt.Println("Type:" + g.getType(f.Type))
+
+		// fmt.Println("Field Pkg path:" + g.getPakagePath(f.Type) + " | Project pkg path: " + g.pkgPath)
 		fieldType := g.getType(f.Type) // f.Type.String()
 		fieldTags := parseFieldTags(f)
 
@@ -187,9 +187,9 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoListAttribute["+fieldType+"]\t")
 		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
 			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
-		} else if f.Type.Kind() == reflect.Struct {
+		} else if f.Type.Kind() == reflect.Struct && !g.isExternalImport(g.getPakagePath(f.Type)) {
 			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+fieldType+"_ExpressionBuilder]\t")
-		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) {
+		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) && !g.isExternalImport(g.getPakagePath(f.Type)) {
 			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+fieldType+"_ExpressionBuilder]\t")
 		} else { // if type is native then use DynamoAttribute
 			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+fieldType+"]\t")
@@ -209,7 +209,7 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		if f.Type.Kind() == reflect.Pointer {
 			if f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice {
 				fieldType = g.getType(f.Type.Elem().Elem())
-			} else if f.Type.Elem().Kind() == reflect.Struct {
+			} else if f.Type.Elem().Kind() == reflect.Struct && !g.isExternalImport(g.getPakagePath(f.Type)) {
 				fieldType = g.getType(f.Type.Elem())
 			}
 		}
@@ -226,9 +226,9 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoListAttribute["+fieldType+"]().WithName(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
 			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
-		} else if f.Type.Kind() == reflect.Struct {
+		} else if f.Type.Kind() == reflect.Struct && !g.isExternalImport(g.getPakagePath(f.Type)) {
 			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+fieldType+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
-		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) {
+		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) && !g.isExternalImport(g.getPakagePath(f.Type)) {
 			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+fieldType+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
 		} else { // if type is native then use DynamoAttribute
 			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoAttribute["+fieldType+"]().WithName(\""+fieldTags.name+"\")")
@@ -268,6 +268,62 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 
 	fmt.Println()
 	return nil
+}
+
+func (g *Generator) isExternalImport(fieldPkgPath string) bool {
+	if len(fieldPkgPath) > 0 {
+		fieldPkgPathSplitted := strings.Split(fieldPkgPath, "/")
+		curPkgPathSplitted := strings.Split(g.pkgPath, "/")
+		if len(curPkgPathSplitted) > 0 {
+			return curPkgPathSplitted[0] != fieldPkgPathSplitted[0]
+		}
+		return true
+	}
+
+	return false
+}
+func (g *Generator) getPakagePath(t reflect.Type) string {
+	if t.Name() == "" {
+		switch t.Kind() {
+		case reflect.Ptr:
+			return g.getPakagePath(t.Elem())
+		case reflect.Slice:
+			return g.getPakagePath(t.Elem())
+		case reflect.Array:
+			return g.getPakagePath(t.Elem())
+		case reflect.Map:
+			return g.getPakagePath(t.Elem())
+		}
+	}
+
+	// if t.Name() == "" || t.PkgPath() == "" {
+	// 	if t.Kind() == reflect.Struct {
+	// 		// the fields of an anonymous struct can have named types,
+	// 		// and t.String() will not be sufficient because it does not
+	// 		// remove the package name when it matches g.pkgPath.
+	// 		// so we convert by hand
+	// 		nf := t.NumField()
+	// 		lines := make([]string, 0, nf)
+	// 		for i := 0; i < nf; i++ {
+	// 			f := t.Field(i)
+	// 			var line string
+	// 			if !f.Anonymous {
+	// 				line = f.Name + " "
+	// 			} // else the field is anonymous (an embedded type)
+	// 			line += g.getType(f.Type)
+	// 			t := f.Tag
+	// 			if t != "" {
+	// 				line += " " + escapeTag(t)
+	// 			}
+	// 			lines = append(lines, line)
+	// 		}
+	// 		return strings.Join([]string{"struct { ", strings.Join(lines, "; "), " }"}, "")
+	// 	}
+	// 	return t.String()
+	// } else if t.PkgPath() == g.pkgPath {
+	// 	return t.Name()
+	// }
+	return t.PkgPath()
 }
 
 // getType return the textual type name of given type that can be used in generated code.
@@ -768,7 +824,7 @@ func (g *Generator) printHeader() {
 	// 	fmt.Println("// +build ", g.buildTags)
 	// 	fmt.Println()
 	// }
-	fmt.Println("// Code generated by easyjson for marshaling/unmarshaling. DO NOT EDIT.")
+	fmt.Println("// Code generated by dynexpr for marshaling/unmarshaling. DO NOT EDIT.")
 	fmt.Println()
 	fmt.Println("package ", g.pkgName)
 	fmt.Println()
@@ -788,15 +844,6 @@ func (g *Generator) printHeader() {
 	}
 
 	fmt.Println(")")
-	// fmt.Println("")
-	// fmt.Println("// suppress unused package warning")
-	// fmt.Println("var (")
-	// fmt.Println("   _ *json.RawMessage")
-	// fmt.Println("   _ *jlexer.Lexer")
-	// fmt.Println("   _ *jwriter.Writer")
-	// fmt.Println("   _ easyjson.Marshaler")
-	// fmt.Println(")")
-
 	fmt.Println()
 }
 
