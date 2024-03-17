@@ -17,8 +17,8 @@ type Person_ExpressionBuilder struct {
 	PK	dynexpr.DynamoKeyAttribute[*string]	
 	SK	dynexpr.DynamoKeyAttribute[*string]	
 	Name	dynexpr.DynamoAttribute[*string]	
-	BankDetailsss	dynexpr.DynamoAttribute[*data.BankDetails_ExpressionBuilder]	
-	FamilyDetails	dynexpr.DynamoAttribute[*data.FamilyDetail_ExpressionBuilder]	
+	BankDetailsss	dynexpr.DynamoAttribute[*BankDetails_ExpressionBuilder]	
+	FamilyDetails	dynexpr.DynamoAttribute[*FamilyDetail_ExpressionBuilder]	
 	PhoneNos	dynexpr.DynamoListAttribute[*string]	
 }
 func (o *Person_ExpressionBuilder) BuildTree(name string) *dynexpr.DynamoAttribute[*Person_ExpressionBuilder] {
@@ -26,8 +26,8 @@ func (o *Person_ExpressionBuilder) BuildTree(name string) *dynexpr.DynamoAttribu
 o.PK = *dynexpr.NewDynamoKeyAttribute[*string]().WithName("pk")
 o.SK = *dynexpr.NewDynamoKeyAttribute[*string]().WithName("sk")
 o.Name = *dynexpr.NewDynamoAttribute[*string]().WithName("name")
-o.BankDetailsss = *(&data.BankDetails_ExpressionBuilder{}).BuildTree("bank_details")
-o.FamilyDetails = *(&data.FamilyDetail_ExpressionBuilder{}).BuildTree("family_details")
+o.BankDetailsss = *(&BankDetails_ExpressionBuilder{}).BuildTree("bank_details")
+o.FamilyDetails = *(&FamilyDetail_ExpressionBuilder{}).BuildTree("family_details")
 o.PhoneNos = *dynexpr.NewDynamoListAttribute[*string]().WithName("phone_nos")
 	 return dynexpr.NewDynamoAttribute[*Person_ExpressionBuilder]().
 		WithAccessReference(o).
@@ -40,12 +40,12 @@ o.PhoneNos = *dynexpr.NewDynamoListAttribute[*string]().WithName("phone_nos")
 		WithChildAttribute(&o.PhoneNos)
 }
 type FamilyDetail_ExpressionBuilder struct {
-	Children	dynexpr.DynamoListAttribute[*data.Child]	
+	Children	dynexpr.DynamoListAttribute[*Child]	
 	IsMarried	dynexpr.DynamoAttribute[*bool]	
 }
 func (o *FamilyDetail_ExpressionBuilder) BuildTree(name string) *dynexpr.DynamoAttribute[*FamilyDetail_ExpressionBuilder] {
 	o = &FamilyDetail_ExpressionBuilder{}
-o.Children = *dynexpr.NewDynamoListAttribute[*data.Child]().WithName("children")
+o.Children = *dynexpr.NewDynamoListAttribute[*Child]().WithName("children")
 o.IsMarried = *dynexpr.NewDynamoAttribute[*bool]().WithName("is_married")
 	 return dynexpr.NewDynamoAttribute[*FamilyDetail_ExpressionBuilder]().
 		WithAccessReference(o).
@@ -68,11 +68,11 @@ o.DOB = *(&time.Time_ExpressionBuilder{}).BuildTree("dob")
 		WithChildAttribute(&o.DOB)
 }
 type BankDetails_ExpressionBuilder struct {
-	Accounts	dynexpr.DynamoAttribute[*data.BankAccount_ExpressionBuilder]	
+	Accounts	dynexpr.DynamoAttribute[*BankAccount_ExpressionBuilder]	
 }
 func (o *BankDetails_ExpressionBuilder) BuildTree(name string) *dynexpr.DynamoAttribute[*BankDetails_ExpressionBuilder] {
 	o = &BankDetails_ExpressionBuilder{}
-o.Accounts = *(&data.BankAccount_ExpressionBuilder{}).BuildTree("accounts")
+o.Accounts = *(&BankAccount_ExpressionBuilder{}).BuildTree("accounts")
 	 return dynexpr.NewDynamoAttribute[*BankDetails_ExpressionBuilder]().
 		WithAccessReference(o).
 		WithName(name).

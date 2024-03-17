@@ -163,27 +163,36 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		// fmt.Println("Field Type: " + f.Type.String())
 		// fmt.Println("Field Type Details: " + g.getType(f.Type))
 		// fmt.Println("PKG path: " + f.Type.PkgPath() + f.Type.Name() + "-" + f.Type.String())
-		g.getType(f.Type)
+		// fmt.Println("Type:" + g.getType(f.Type))
+		fieldType := g.getType(f.Type) // f.Type.String()
 		fieldTags := parseFieldTags(f)
+
+		if f.Type.Kind() == reflect.Pointer {
+			if f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice {
+				fieldType = g.getType(f.Type.Elem().Elem())
+			} else if f.Type.Elem().Kind() == reflect.Struct {
+				// fieldType = g.getType(f.Type.Elem())
+			}
+		}
 		// fmt.Println(fmt.Sprintf("Field Tags: %v", fieldTags))
 
 		// if json tag has dynexpr:"partionKey" this is a partition key attribute or
 		// if json tag has dynexpr:"partionKey" this is a partition key attribute
 		// and we use DynamoKeyAttribute
 		if fieldTags.dynExprPK || fieldTags.dynExprSK {
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoKeyAttribute["+f.Type.String()+"]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoKeyAttribute["+fieldType+"]\t")
 		} else if f.Type.Kind() == reflect.Array || f.Type.Kind() == reflect.Slice { // if type is array/slice then we use DynamoListAttribute
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoListAttribute["+f.Type.String()+"]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoListAttribute["+fieldType+"]\t")
 		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice) {
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoListAttribute["+f.Type.Elem().Elem().String()+"]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoListAttribute["+fieldType+"]\t")
 		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
 			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
 		} else if f.Type.Kind() == reflect.Struct {
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+f.Type.String()+"_ExpressionBuilder]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+fieldType+"_ExpressionBuilder]\t")
 		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) {
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+f.Type.String()+"_ExpressionBuilder]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+fieldType+"_ExpressionBuilder]\t")
 		} else { // if type is native then use DynamoAttribute
-			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+f.Type.String()+"]\t")
+			fmt.Fprintln(g.out, "\t"+f.Name+"\tdynexpr.DynamoAttribute["+fieldType+"]\t")
 		}
 	}
 	fmt.Fprintln(g.out, "}")
@@ -196,25 +205,33 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		// fmt.Println("Field Type: " + f.Type.String())
 		// fmt.Println("Field Type Details: " + g.getType(f.Type))
 		fieldTags := parseFieldTags(f)
+		fieldType := g.getType(f.Type) // f.Type.String()
+		if f.Type.Kind() == reflect.Pointer {
+			if f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice {
+				fieldType = g.getType(f.Type.Elem().Elem())
+			} else if f.Type.Elem().Kind() == reflect.Struct {
+				fieldType = g.getType(f.Type.Elem())
+			}
+		}
 		// fmt.Println(fmt.Sprintf("Field Tags: %v", fieldTags))
 
 		// if json tag has dynexpr:"partionKey" this is a partition key attribute or
 		// if json tag has dynexpr:"partionKey" this is a partition key attribute
 		// and we use DynamoKeyAttribute
 		if fieldTags.dynExprPK || fieldTags.dynExprSK {
-			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoKeyAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoKeyAttribute["+fieldType+"]().WithName(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Array || f.Type.Kind() == reflect.Slice { // if type is array/slice then we use DynamoListAttribute
-			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoListAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoListAttribute["+fieldType+"]().WithName(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice) {
-			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoListAttribute["+f.Type.Elem().Elem().String()+"]().WithName(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoListAttribute["+fieldType+"]().WithName(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Map || f.Type.Kind() == reflect.Chan || f.Type.Kind() == reflect.Interface {
 			return fmt.Errorf("field %s has unsupported type %s", f.Name, f.Type.Kind())
 		} else if f.Type.Kind() == reflect.Struct {
-			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+f.Type.String()+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+fieldType+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
 		} else if f.Type.Kind() == reflect.Pointer && (f.Type.Elem().Kind() == reflect.Struct) {
-			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+f.Type.Elem().String()+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *(&"+fieldType+"_ExpressionBuilder{}).BuildTree(\""+fieldTags.name+"\")")
 		} else { // if type is native then use DynamoAttribute
-			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoAttribute["+f.Type.String()+"]().WithName(\""+fieldTags.name+"\")")
+			fmt.Fprintln(g.out, "o."+f.Name+" = *dynexpr.NewDynamoAttribute["+fieldType+"]().WithName(\""+fieldTags.name+"\")")
 		}
 	}
 	fmt.Fprintln(g.out, "\t return dynexpr.NewDynamoAttribute[*"+expressionBldrStructName+"]().")
