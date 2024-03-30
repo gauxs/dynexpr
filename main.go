@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"dynexpr/bootstrap"
-	"dynexpr/parser"
+	"github.com/gauxs/dynexpr/bootstrap"
+	"github.com/gauxs/dynexpr/parser"
 )
 
 var specifiedName = flag.String("output_filename", "", "specify the filename of the output")

@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-const genPackage = "dynexpr/codegen"
+const genPackage = "github.com/gauxs/dynexpr/codegen"
 
 type Generator struct {
 	PkgPath, PkgName string

@@ -1,9 +1,10 @@
 package v1
 
 import (
-	"dynexpr/utils"
 	"errors"
 	"strings"
+
+	"github.com/gauxs/dynexpr/utils"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )

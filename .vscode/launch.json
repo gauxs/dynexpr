@@ -11,7 +11,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${file}",
-            "args": ["./codegen/test/data/person.go"]
+            "args": ["-output_filename", "codegen/test/data/aa.go", "codegen/test/data"]
         }
 
     ]

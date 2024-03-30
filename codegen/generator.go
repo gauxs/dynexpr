@@ -12,7 +12,7 @@ import (
 	"unicode"
 )
 
-const pkgDynexpr = "dynexpr/v1"
+const pkgDynexpr = "github.com/gauxs/dynexpr/v1"
 
 // fieldTags contains parsed version of json struct field tags.
 type fieldTags struct {
