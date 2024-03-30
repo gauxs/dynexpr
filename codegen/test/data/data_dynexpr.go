@@ -8,6 +8,19 @@ import (
 	time "time"
 )
 
+type Vehicle_ExpressionBuilder struct {
+	Variant dynexpr.DynamoAttribute[string]
+}
+
+func (o *Vehicle_ExpressionBuilder) BuildTree(name string) *dynexpr.DynamoAttribute[*Vehicle_ExpressionBuilder] {
+	o = &Vehicle_ExpressionBuilder{}
+	o.Variant = *dynexpr.NewDynamoAttribute[string]().WithName("variant")
+	return dynexpr.NewDynamoAttribute[*Vehicle_ExpressionBuilder]().
+		WithAccessReference(o).
+		WithName(name).
+		WithChildAttribute(&o.Variant)
+}
+
 type Person_ExpressionBuilder struct {
 	PK            dynexpr.DynamoKeyAttribute[*string]
 	SK            dynexpr.DynamoKeyAttribute[*string]
