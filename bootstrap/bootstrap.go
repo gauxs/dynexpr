@@ -1,7 +1,7 @@
 // Package bootstrap implements the bootstrapping logic: generation of a .go file to
 // launch the actual generator and launching the generator itself.
 //
-// The package may be preferred to a command-line utility if generating the serializers
+// The package may be preferred to a command-line utility if generating the expression builder
 // from golang code is required.
 package bootstrap
 
@@ -21,22 +21,9 @@ const genPackage = "dynexpr/codegen"
 type Generator struct {
 	PkgPath, PkgName string
 	Types            []string
-
-	// NoStdMarshalers          bool
-	// SnakeCase                bool
-	// LowerCamelCase           bool
-	// OmitEmpty                bool
-	// DisallowUnknownFields    bool
-	// SkipMemberNameUnescaping bool
-
-	OutName string
-	// BuildTags     string
-	// GenBuildFlags string
-
-	// StubsOnly   bool
-	LeaveTemps bool
-	NoFormat   bool
-	// SimpleBytes bool
+	OutName          string
+	LeaveTemps       bool
+	NoFormat         bool
 }
 
 // writeMain creates a .go file that launches the generator if 'go run'.
@@ -65,37 +52,11 @@ func (g *Generator) writeMain() (path string, err error) {
 	fmt.Fprintln(f, ")")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "func main() {")
-	// fmt.Fprintf(f, "  g := codegen.NewGenerator(%q)\n", filepath.Base(g.OutName))
 	fmt.Fprintf(f, "  g := codegen.NewGenerator()\n")
 	fmt.Fprintf(f, "  g.SetPkg(%q, %q)\n", g.PkgName, g.PkgPath)
-	// if g.BuildTags != "" {
-	// 	fmt.Fprintf(f, "  g.SetBuildTags(%q)\n", g.BuildTags)
-	// }
-	// if g.SnakeCase {
-	// 	fmt.Fprintln(f, "  g.UseSnakeCase()")
-	// }
-	// if g.LowerCamelCase {
-	// 	fmt.Fprintln(f, "  g.UseLowerCamelCase()")
-	// }
-	// if g.OmitEmpty {
-	// 	fmt.Fprintln(f, "  g.OmitEmpty()")
-	// }
-	// if g.NoStdMarshalers {
-	// 	fmt.Fprintln(f, "  g.NoStdMarshalers()")
-	// }
-	// if g.DisallowUnknownFields {
-	// 	fmt.Fprintln(f, "  g.DisallowUnknownFields()")
-	// }
-	// if g.SimpleBytes {
-	// 	fmt.Fprintln(f, "  g.SimpleBytes()")
-	// }
-	// if g.SkipMemberNameUnescaping {
-	// 	fmt.Fprintln(f, "  g.SkipMemberNameUnescaping()")
-	// }
 
 	sort.Strings(g.Types)
 	for _, v := range g.Types {
-		// fmt.Fprintln(f, "  g.Add(pkg.EasyJSON_exporter_"+v+"(nil))")
 		if !strings.HasSuffix(v, "ExpressionBuilder") {
 			fmt.Fprintln(f, "  g.Add(pkg."+v+"{})")
 		}
@@ -117,13 +78,6 @@ func (g *Generator) writeMain() (path string, err error) {
 }
 
 func (g *Generator) Run() error {
-	// if err := g.writeStub(); err != nil {
-	// 	return err
-	// }
-	// if g.StubsOnly {
-	// 	return nil
-	// }
-
 	path, err := g.writeMain()
 	if err != nil {
 		return err
@@ -141,11 +95,7 @@ func (g *Generator) Run() error {
 	}
 
 	execArgs := []string{"run"}
-	// if g.GenBuildFlags != "" {
-	// 	buildFlags := buildFlagsRegexp.FindAllString(g.GenBuildFlags, -1)
-	// 	execArgs = append(execArgs, buildFlags...)
-	// }
-	execArgs = append(execArgs, filepath.Base(path)) //"-tags", g.BuildTags,
+	execArgs = append(execArgs, filepath.Base(path))
 	cmd := exec.Command("go", execArgs...)
 
 	cmd.Stdout = f
