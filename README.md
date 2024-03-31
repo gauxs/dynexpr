@@ -1,4 +1,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/gauxs/dynexpr)](https://goreportcard.com/report/github.com/gauxs/dynexpr)
+![Go Version](https://img.shields.io/badge/go%20version-%3E=1.22-61CFDD.svg?style=flat-square)
 
 # Dynexpr
 
