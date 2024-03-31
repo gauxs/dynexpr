@@ -21,9 +21,11 @@ const genPackage = "github.com/gauxs/dynexpr/internal/codegen"
 type Bootstraper struct {
 	PkgPath, PkgName string
 	Types            []string
-	OutName          string
-	LeaveTemps       bool
-	NoFormat         bool
+	// TODO: make it more efficient, make a new struct to hold `struct` heirarchial psotioning
+	RootStructNames []string // struct which holds the schema of a single DDB item
+	OutName         string
+	LeaveTemps      bool
+	NoFormat        bool
 }
 
 // writeMain creates a .go file that launches the generator if 'go run'.
@@ -52,7 +54,19 @@ func (g *Bootstraper) writeMain() (path string, err error) {
 	fmt.Fprintln(f, ")")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "func main() {")
-	fmt.Fprintf(f, "  g := codegen.NewGenerator()\n")
+	fmt.Fprintf(f, "  g := codegen.NewGenerator(")
+	if len(g.RootStructNames) > 0 {
+		fmt.Fprintf(f, "[]string{")
+		for i, rootStructName := range g.RootStructNames {
+			if i == len(g.RootStructNames)-1 {
+				fmt.Fprintf(f, "\"%s\"", rootStructName)
+			} else {
+				fmt.Fprintf(f, "\"%s\", ", rootStructName)
+			}
+		}
+		fmt.Fprintf(f, "}")
+	}
+	fmt.Fprintf(f, ")\n")
 	fmt.Fprintf(f, "  g.SetPkg(%q, %q)\n", g.PkgName, g.PkgPath)
 
 	sort.Strings(g.Types)

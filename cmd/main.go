@@ -41,12 +41,14 @@ func generate(fname string) (err error) {
 		outName = *specifiedName
 	}
 
+	// add a testcase to check if `RootStructNames` has valid entries
 	g := bootstrap.Bootstraper{
-		PkgPath:    p.PkgPath,
-		PkgName:    p.PkgName,
-		Types:      p.StructNames,
-		OutName:    outName,
-		LeaveTemps: false,
+		PkgPath:         p.PkgPath,
+		PkgName:         p.PkgName,
+		Types:           p.StructNames,
+		RootStructNames: p.RootStructNames,
+		OutName:         outName,
+		LeaveTemps:      false,
 	}
 
 	if err := g.Run(); err != nil {

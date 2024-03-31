@@ -29,4 +29,4 @@ The project is licensed under the [MIT License](LICENSE).
 
 ## Test
 
-`go run cmd/main.go -output_filename test/data/aa.go test/data`
+`go run cmd/main.go -output_filename test/expression/data/person_dynexpr.go  test/expression/data`

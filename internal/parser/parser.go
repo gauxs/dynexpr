@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	structComment     = "dynexpr:generate"
+	rootStructComment = "dynexpr:generate"
 	structSkipComment = "dynexpr:skip"
 )
 
@@ -17,7 +17,9 @@ type Parser struct {
 	PkgPath     string
 	PkgName     string
 	StructNames []string
-	AllStructs  bool
+	// TODO: make it more efficient, make a new struct to hold `struct` heirarchial psotioning
+	RootStructNames []string // struct which holds the schema of a single DDB item
+	AllStructs      bool
 }
 
 type visitor struct {
@@ -26,7 +28,7 @@ type visitor struct {
 	name string
 }
 
-func (p *Parser) needType(comments *ast.CommentGroup) (skip, explicit bool) {
+func (p *Parser) needType(comments *ast.CommentGroup) (skip, explicit, isRootStruct bool) {
 	if comments == nil {
 		return
 	}
@@ -49,10 +51,10 @@ func (p *Parser) needType(comments *ast.CommentGroup) (skip, explicit bool) {
 			comment = strings.TrimSpace(comment)
 
 			if strings.HasPrefix(comment, structSkipComment) {
-				return true, false
+				return true, false, false
 			}
-			if strings.HasPrefix(comment, structComment) {
-				return false, true
+			if strings.HasPrefix(comment, rootStructComment) {
+				return false, true, true
 			}
 		}
 	}
@@ -69,7 +71,7 @@ func (v *visitor) Visit(n ast.Node) (w ast.Visitor) {
 		return v
 
 	case *ast.GenDecl:
-		skip, explicit := v.needType(n.Doc)
+		skip, explicit, _ := v.needType(n.Doc)
 
 		if skip || explicit {
 			for _, nc := range n.Specs {
@@ -82,7 +84,7 @@ func (v *visitor) Visit(n ast.Node) (w ast.Visitor) {
 
 		return v
 	case *ast.TypeSpec:
-		skip, explicit := v.needType(n.Doc)
+		skip, explicit, isRootStruct := v.needType(n.Doc)
 		if skip {
 			return nil
 		}
@@ -95,6 +97,11 @@ func (v *visitor) Visit(n ast.Node) (w ast.Visitor) {
 		// Allow to specify non-structs explicitly independent of '-all' flag.
 		if explicit {
 			v.StructNames = append(v.StructNames, v.name)
+			// return nil
+		}
+
+		if isRootStruct {
+			v.RootStructNames = append(v.RootStructNames, v.name)
 			return nil
 		}
 
