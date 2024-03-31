@@ -1,3 +1,4 @@
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/gauxs/dynexpr/go.yaml?branch=master&style=flat-square)](https://github.com/gauxs/dynexpr/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gauxs/dynexpr)](https://goreportcard.com/report/github.com/gauxs/dynexpr)
 ![Go Version](https://img.shields.io/badge/go%20version-%3E=1.22-61CFDD.svg?style=flat-square)
 [![PkgGoDev](https://pkg.go.dev/badge/mod/github.com/gauxs/dynexpr)](https://pkg.go.dev/mod/github.com/gauxs/dynexpr)
