@@ -131,6 +131,10 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		if f.Type.Kind() == reflect.Pointer {
 			if f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice {
 				fieldType = g.getType(f.Type.Elem().Elem())
+				internalType := f.Type.Elem().Elem()
+				if internalType.Kind() == reflect.Struct || (internalType.Kind() == reflect.Pointer && internalType.Elem().Kind() == reflect.Struct) {
+					fieldType += "_ExpressionBuilder"
+				}
 			} else if f.Type.Elem().Kind() == reflect.Struct {
 				// do nothing
 			}
@@ -166,6 +170,10 @@ func (g *Generator) genStructExpressionBuilder(t reflect.Type) error {
 		if f.Type.Kind() == reflect.Pointer {
 			if f.Type.Elem().Kind() == reflect.Array || f.Type.Elem().Kind() == reflect.Slice {
 				fieldType = g.getType(f.Type.Elem().Elem())
+				internalType := f.Type.Elem().Elem()
+				if internalType.Kind() == reflect.Struct || (internalType.Kind() == reflect.Pointer && internalType.Elem().Kind() == reflect.Struct) {
+					fieldType += "_ExpressionBuilder"
+				}
 			} else if f.Type.Elem().Kind() == reflect.Struct && !g.isExternalImport(g.getPakagePath(f.Type)) {
 				fieldType = g.getType(f.Type.Elem())
 			}
@@ -278,6 +286,7 @@ func (g *Generator) getType(t reflect.Type) string {
 	} else if t.PkgPath() == g.pkgPath {
 		return t.Name()
 	}
+
 	return g.pkgAlias(t.PkgPath()) + "." + t.Name()
 }
 
