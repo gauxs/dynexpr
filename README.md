@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/gauxs/dynexpr)](https://goreportcard.com/report/github.com/gauxs/dynexpr)
+
 # Dynexpr
 
 Expression builder for dynamo DB.
