@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	mainFilePath string = "/cmd/main.go"
+	mainFilePath string = "/cmd/dynexpr/main.go"
 )
 
 func GenerateExpressionBuilder(destinationDirPath string) error {
