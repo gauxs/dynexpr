@@ -9,10 +9,16 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	test_models "github.com/gauxs/dynexpr/test/expression/data"
+	test_helpers "github.com/gauxs/dynexpr/test/expression/helpers"
 )
 
-// Testing condition builder
+const (
+	destinationDirPath string = "/test/expression/data"
+)
+
 func TestAttributeCondition(t *testing.T) {
+	assert.Nil(t, test_helpers.GenerateExpressionBuilder(destinationDirPath))
+
 	// build expression builder
 	expBuilder := test_models.NewPerson_ExpressionBuilder()
 	rootExpBldr := expBuilder.DDBItemRoot().AR()
