@@ -8,4 +8,4 @@ Expression builder for dynamo DB.
 
 # Test
 
-go run main.go -output_filename codegen/test/data/output.go codegen/test/data
+`go run cmd/main.go -output_filename test/data/aa.go test/data`
