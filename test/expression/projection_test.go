@@ -21,8 +21,8 @@ func TestTopLevelAttributeProjection(t *testing.T) {
 	// Build NameBuilder, KeyBuilder,
 	// list and constructing tree
 	expBuilder.Build()
-
 	rootExpBldr := expBuilder.DDBItemRoot().AR()
+
 	rootExpBldr.PK.Project()
 	rootExpBldr.SK.Project()
 	rootExpBldr.Name.Project()
@@ -31,7 +31,8 @@ func TestTopLevelAttributeProjection(t *testing.T) {
 
 	// mark a deep level attribute for projection
 	// which should be ignored
-	rootExpBldr.FamilyDetails.AR().IsMarried.Project()
+	rootExpBldr.FamilyDetails.AR().
+		IsMarried.Project()
 
 	// generate expression
 	projBuilder, err := expBuilder.BuildProjectionBuilder()
@@ -130,7 +131,6 @@ func TestPrimitiveAttributeProjection(t *testing.T) {
 			" #3.#4[5].#6, #7.#8[2].#2, #7.#8[2].#9, #7.#8[10].#2, #7.#8[10].#9, #7.#10"
 		assert.Equal(t, exprectedProjectionExpression, *expr.Projection())
 
-		// var expectedValuesMap map[string]types.AttributeValue = nil
 		var expectedValuesMap map[string]*dynamodb.AttributeValue = nil
 
 		assert.Equal(t, expectedValuesMap, expr.Values())

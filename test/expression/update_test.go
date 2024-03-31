@@ -32,15 +32,18 @@ func TestAttributeUpdate(t *testing.T) {
 	// list and constructing tree
 	expBuilder.Build()
 
-	rootExpBldr.Name.AddValue(dynexprv1.UPDATE_SET, utils.PointerTo("New Name"))
-	rootExpBldr.BankDetails.AR().Accounts.
-		AndWithCondition()(expression.ConditionBuilder(rootExpBldr.BankDetails.AR().Accounts.GetNameBuilder().AttributeExists()))
+	rootExpBldr.Name.AddValue(
+		dynexprv1.UPDATE_SET, utils.PointerTo("New Name"))
+	rootExpBldr.BankDetails.AR().Accounts.AndWithCondition()(
+		expression.ConditionBuilder(rootExpBldr.BankDetails.AR().Accounts.GetNameBuilder().AttributeExists()))
 
 	// setting the whole attribute
-	rootExpBldr.BankDetails.AR().Accounts.Index(1).AddValue(dynexprv1.UPDATE_SET, test_models.BankAccount{
-		AccountType:       utils.PointerTo(test_models.SAVINGS),
-		BankAccountNumber: utils.PointerTo(4857372829),
-	})
+	rootExpBldr.BankDetails.AR().Accounts.Index(1).AddValue(
+		dynexprv1.UPDATE_SET, test_models.BankAccount{
+			AccountType:       utils.PointerTo(test_models.SAVINGS),
+			BankAccountNumber: utils.PointerTo(4857372829),
+		})
+
 	// this should be ignored by expression builder, since parent attribute i.e. index 1 is set
 	rootExpBldr.BankDetails.AR().Accounts.Index(1).AR().BankAccountNumber.AddValue(dynexprv1.UPDATE_SET, "NewBankAccntNumber")
 
@@ -66,7 +69,12 @@ func TestAttributeUpdate(t *testing.T) {
 		return
 	}
 
-	expr, err := expression.NewBuilder().WithUpdate(*updateBuilder).Build()
+	conditionBuilder := expBuilder.BuildConditionBuilder()
+
+	expr, err := expression.NewBuilder().
+		WithUpdate(*updateBuilder).
+		WithCondition(*conditionBuilder).
+		Build()
 	if err != nil {
 		t.Errorf(err.Error())
 		return

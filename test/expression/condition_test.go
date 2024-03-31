@@ -30,22 +30,28 @@ func TestAttributeCondition(t *testing.T) {
 	// list and constructing tree
 	expBuilder.Build()
 
-	rootExpBldr.PK.AndWithCondition()(rootExpBldr.PK.GetKeyBuilder().Equal(expression.Value("PartionValue")))
-	rootExpBldr.SK.AndWithCondition()(rootExpBldr.SK.GetKeyBuilder().BeginsWith("SortKeyPrefix"))
+	rootExpBldr.PK.AndWithCondition()(
+		rootExpBldr.PK.GetKeyBuilder().Equal(expression.Value("PartionValue")))
 
-	rootExpBldr.Name.AndWithCondition()(rootExpBldr.Name.GetNameBuilder().BeginsWith("NamePrefix"))
+	rootExpBldr.SK.AndWithCondition()(
+		rootExpBldr.SK.GetKeyBuilder().BeginsWith("SortKeyPrefix"))
 
-	rootExpBldr.BankDetails.AR().Accounts.
-		AndWithCondition()(expression.ConditionBuilder(rootExpBldr.BankDetails.AR().Accounts.GetNameBuilder().AttributeExists()))
+	rootExpBldr.Name.AndWithCondition()(
+		rootExpBldr.Name.GetNameBuilder().BeginsWith("NamePrefix"))
 
-	rootExpBldr.BankDetails.AR().Accounts.Index(1).
-		AndWithCondition()(expression.ConditionBuilder(rootExpBldr.BankDetails.GetNameBuilder().AttributeExists()))
+	rootExpBldr.BankDetails.AR().Accounts.AndWithCondition()(
+		expression.ConditionBuilder(rootExpBldr.BankDetails.AR().Accounts.GetNameBuilder().AttributeExists()))
 
-	rootExpBldr.BankDetails.AR().Accounts.Index(1).AR().BankAccountNumber.
-		AndWithCondition()(expression.ConditionBuilder(rootExpBldr.BankDetails.AR().Accounts.Index(1).AR().BankAccountNumber.GetNameBuilder().Equal(expression.Value("SomeBankAccntNumber"))))
+	rootExpBldr.BankDetails.AR().Accounts.Index(1).AndWithCondition()(
+		expression.ConditionBuilder(rootExpBldr.BankDetails.GetNameBuilder().AttributeExists()))
 
-	rootExpBldr.FamilyDetails.AR().Children.Index(2).AR().Name.
-		AndWithCondition()(expression.ConditionBuilder(rootExpBldr.FamilyDetails.AR().Children.Index(2).AR().Name.GetNameBuilder().Equal(expression.Value("ChildrenName"))))
+	rootExpBldr.BankDetails.AR().Accounts.Index(1).AR().BankAccountNumber.AndWithCondition()(
+		expression.ConditionBuilder(rootExpBldr.BankDetails.AR().Accounts.Index(1).AR().
+			BankAccountNumber.GetNameBuilder().Equal(expression.Value("SomeBankAccntNumber"))))
+
+	rootExpBldr.FamilyDetails.AR().Children.Index(2).AR().Name.AndWithCondition()(
+		expression.ConditionBuilder(rootExpBldr.FamilyDetails.AR().Children.Index(2).AR().
+			Name.GetNameBuilder().Equal(expression.Value("ChildrenName"))))
 
 	// generate expression
 	projBuilder, err := expBuilder.BuildProjectionBuilder()
@@ -66,7 +72,11 @@ func TestAttributeCondition(t *testing.T) {
 		return
 	}
 
-	expr, err := expression.NewBuilder().WithProjection(*projBuilder).WithKeyCondition(*keyConditionBuilder).WithCondition(*conditionBuilder).Build()
+	expr, err := expression.NewBuilder().
+		WithProjection(*projBuilder).
+		WithKeyCondition(*keyConditionBuilder).
+		WithCondition(*conditionBuilder).
+		Build()
 	if err != nil {
 		t.Errorf(err.Error())
 		return

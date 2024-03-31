@@ -18,7 +18,48 @@ go get github.com/gauxs/dynexpr && go install github.com/gauxs/dynexpr/...@lates
 
 ## What is Dynexpr?
 
-## Why Dynexpr?
+Dynexpr simplifies the creation of DynamoDB expressions by performing code generation on Go structs representing DynamoDB items. It offers convenient methods to generate expressions for DynamoDB, streamlining the process of building complex queries.
+
+## Usage
+
+```
+// dynexpr:generate
+type Person struct {
+	PK            *string       `json:"pk,omitempty" dynexpr:"partitionKey"`
+	SK            *string       `json:"sk,omitempty"  dynexpr:"sortKey"`
+	Name          *string       `json:"name,omitempty"`
+}
+
+```
+
+## Configurations
+
+1. `dynexpr:generate`: should be declared over the struct which represents a single item of dynamoDB.
+
+```
+// dynexpr:generate
+type DDBItem struct {
+    ...
+}
+```
+
+2. `dynexpr:"partitionKey"`: to declare that the attribute is partion key of the dynamoDB item.
+
+```
+type DDBItem struct {
+    PK          *string       `json:"pk,omitempty" dynexpr:"partitionKey"`
+    ...
+}
+```
+
+3. `dynexpr:"sortKey"`: to declare that the attribute is sort key of the dynamoDB item.
+
+```
+type DDBItem struct {
+    SK          *string       `json:"sk,omitempty" dynexpr:"sortKey"`
+    ...
+}
+```
 
 ## Q & A
 
