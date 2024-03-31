@@ -22,12 +22,14 @@ Dynexpr simplifies the creation of DynamoDB expressions by performing code gener
 
 ## Usage
 
+Con
+
 ```
 // dynexpr:generate
-type Person struct {
-	PK            *string       `json:"pk,omitempty" dynexpr:"partitionKey"`
-	SK            *string       `json:"sk,omitempty"  dynexpr:"sortKey"`
-	Name          *string       `json:"name,omitempty"`
+type Transaction struct {
+	UserID        *string `json:"user_id,omitempty" dynexpr:"partitionKey"`
+	TransactionID *string `json:"transaction_id,omitempty"  dynexpr:"sortKey"`
+	Amount        *int    `json:"amount,omitempty"`
 }
 
 ```
