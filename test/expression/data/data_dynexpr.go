@@ -7,6 +7,25 @@ import (
 	time "time"
 )
 
+type Transaction_ExpressionBuilder struct {
+	UserID        dynexpr.DynamoKeyAttribute[*string]
+	TransactionID dynexpr.DynamoKeyAttribute[*string]
+	Amount        dynexpr.DynamoAttribute[*int]
+}
+
+func (o *Transaction_ExpressionBuilder) BuildTree(name string) *dynexpr.DynamoAttribute[*Transaction_ExpressionBuilder] {
+	o = &Transaction_ExpressionBuilder{}
+	o.UserID = *dynexpr.NewDynamoKeyAttribute[*string]().WithName("user_id")
+	o.TransactionID = *dynexpr.NewDynamoKeyAttribute[*string]().WithName("transaction_id")
+	o.Amount = *dynexpr.NewDynamoAttribute[*int]().WithName("amount")
+	return dynexpr.NewDynamoAttribute[*Transaction_ExpressionBuilder]().
+		WithAccessReference(o).
+		WithName(name).
+		WithChildAttribute(&o.UserID).
+		WithChildAttribute(&o.TransactionID).
+		WithChildAttribute(&o.Amount)
+}
+
 type Person_ExpressionBuilder struct {
 	PK            dynexpr.DynamoKeyAttribute[*string]
 	SK            dynexpr.DynamoKeyAttribute[*string]
@@ -97,4 +116,7 @@ func (o *BankAccount_ExpressionBuilder) BuildTree(name string) *dynexpr.DynamoAt
 }
 func NewPerson_ExpressionBuilder() dynexpr.DDBItemExpressionBuilder[*Person_ExpressionBuilder] {
 	return dynexpr.NewDDBItemExpressionBuilder(&Person_ExpressionBuilder{})
+}
+func NewTransaction_ExpressionBuilder() dynexpr.DDBItemExpressionBuilder[*Transaction_ExpressionBuilder] {
+	return dynexpr.NewDDBItemExpressionBuilder(&Transaction_ExpressionBuilder{})
 }

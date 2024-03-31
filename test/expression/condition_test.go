@@ -1,6 +1,8 @@
 package expression
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -8,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"github.com/stretchr/testify/assert"
 
+	dynexprv1 "github.com/gauxs/dynexpr/pkg/v1"
 	test_models "github.com/gauxs/dynexpr/test/expression/data"
 	test_helpers "github.com/gauxs/dynexpr/test/expression/helpers"
 )
@@ -15,6 +18,48 @@ import (
 const (
 	destinationDirPath string = "/test/expression/data"
 )
+
+func TestTransaction(t *testing.T) {
+	// build expression builder
+	dynexprBldr := test_models.NewTransaction_ExpressionBuilder()
+	dynexprBldr.Build()
+
+	ddbItem := dynexprBldr.DDBItemRoot()
+
+	// project attributes
+	ddbItem.AR().UserID.Project()
+	ddbItem.AR().TransactionID.Project()
+	ddbItem.AR().Amount.Project()
+
+	// add condition
+	ddbItem.AR().TransactionID.AndWithCondition()(
+		ddbItem.AR().TransactionID.GetKeyBuilder().Equal(expression.Value("userID#123")))
+
+	// update attributes
+	ddbItem.AR().Amount.AddValue(dynexprv1.UPDATE_SET, 9000)
+
+	projBldr, _ := dynexprBldr.BuildProjectionBuilder()
+	updtBldr, _ := dynexprBldr.BuildUpdateBuilder()
+	dynamoDBExpr, err := expression.NewBuilder().
+		WithProjection(*projBldr).
+		WithKeyCondition(*(dynexprBldr.BuildKeyConditionBuilder())).
+		WithUpdate(*updtBldr).
+		Build()
+	if err != nil {
+		t.Errorf(err.Error())
+		return
+	}
+
+	fmt.Println(string(*(dynamoDBExpr.Projection())))
+	fmt.Println(string(*(dynamoDBExpr.KeyCondition())))
+	fmt.Println(string(*(dynamoDBExpr.Update())))
+
+	nM, _ := json.Marshal(dynamoDBExpr.Names())
+	vM, _ := json.Marshal(dynamoDBExpr.Values())
+	fmt.Println(string(nM))
+	fmt.Println(string(vM))
+
+}
 
 func TestAttributeCondition(t *testing.T) {
 	assert.Nil(t, test_helpers.GenerateExpressionBuilder(destinationDirPath))
