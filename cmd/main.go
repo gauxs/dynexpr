@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gauxs/dynexpr/bootstrap"
-	"github.com/gauxs/dynexpr/parser"
+	"github.com/gauxs/dynexpr/internal/bootstrap"
+	"github.com/gauxs/dynexpr/internal/parser"
 )
 
 var specifiedName = flag.String("output_filename", "", "specify the filename of the output")
@@ -41,11 +41,12 @@ func generate(fname string) (err error) {
 		outName = *specifiedName
 	}
 
-	g := bootstrap.Generator{
-		PkgPath: p.PkgPath,
-		PkgName: p.PkgName,
-		Types:   p.StructNames,
-		OutName: outName,
+	g := bootstrap.Bootstraper{
+		PkgPath:    p.PkgPath,
+		PkgName:    p.PkgName,
+		Types:      p.StructNames,
+		OutName:    outName,
+		LeaveTemps: false,
 	}
 
 	if err := g.Run(); err != nil {

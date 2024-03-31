@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gauxs/dynexpr/utils"
+	"github.com/gauxs/dynexpr/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"

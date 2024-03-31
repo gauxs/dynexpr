@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/gauxs/dynexpr/utils"
+	"github.com/gauxs/dynexpr/internal/utils"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )

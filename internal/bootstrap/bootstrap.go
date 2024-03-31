@@ -16,9 +16,9 @@ import (
 	"strings"
 )
 
-const genPackage = "github.com/gauxs/dynexpr/codegen"
+const genPackage = "github.com/gauxs/dynexpr/internal/codegen"
 
-type Generator struct {
+type Bootstraper struct {
 	PkgPath, PkgName string
 	Types            []string
 	OutName          string
@@ -27,7 +27,7 @@ type Generator struct {
 }
 
 // writeMain creates a .go file that launches the generator if 'go run'.
-func (g *Generator) writeMain() (path string, err error) {
+func (g *Bootstraper) writeMain() (path string, err error) {
 	f, err := ioutil.TempFile(filepath.Dir(g.OutName), "dynexpr-bootstrap")
 	if err != nil {
 		return "", err
@@ -77,7 +77,7 @@ func (g *Generator) writeMain() (path string, err error) {
 	return dest, os.Rename(src, dest)
 }
 
-func (g *Generator) Run() error {
+func (g *Bootstraper) Run() error {
 	path, err := g.writeMain()
 	if err != nil {
 		return err
