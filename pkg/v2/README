@@ -1,0 +1,1 @@
+This directory uses `aws-sdk-go-v2` and the expression objects generated are compatible with `aws-sdk-go-v2` dynamoDB funtionalities. NOTE: If you are using DynamoDB Accelerator(DAX) then don't use this version because `aws-dax-go` does not support `aws-sdk-go-v2` [Feature Request](https://github.com/aws/aws-dax-go/issues/2)

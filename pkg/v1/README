@@ -1,0 +1,1 @@
+This directory uses `aws-sdk-go` and the expression objects generated are compatible with `aws-sdk-go` dynamoDB funtionalities.
