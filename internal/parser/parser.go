@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	structComment     = "easyjson:json"
-	structSkipComment = "easyjson:skip"
+	structComment     = "dynexpr:generate"
+	structSkipComment = "dynexpr:skip"
 )
 
 type Parser struct {

@@ -8,23 +8,23 @@ func Test_getModulePath(t *testing.T) {
 		want      string
 	}{
 		"valid go.mod without comments and deps": {
-			goModPath: "./testdata/default.go.mod",
+			goModPath: "./data/default.go.mod",
 			want:      "example.com/user/project",
 		},
 		"valid go.mod with comments and without deps": {
-			goModPath: "./testdata/comments.go.mod",
+			goModPath: "./data/comments.go.mod",
 			want:      "example.com/user/project",
 		},
 		"valid go.mod with comments and deps": {
-			goModPath: "./testdata/comments_deps.go.mod",
+			goModPath: "./data/comments_deps.go.mod",
 			want:      "example.com/user/project",
 		},
-		"actual easyjson go.mod": {
-			goModPath: "../go.mod",
-			want:      "github.com/mailru/easyjson",
+		"actual dynexpr go.mod": {
+			goModPath: "../../go.mod",
+			want:      "github.com/gauxs/dynexpr",
 		},
 		"invalid go.mod with missing module": {
-			goModPath: "./testdata/missing_module.go",
+			goModPath: "./data/missing_module.go",
 			want:      "",
 		},
 	}
