@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-const genPackage = "github.com/gauxs/dynexpr/internal/codegen"
+const genPackage = "github.com/gauxs/dynexpr/pkg/codegen"
 
 type Bootstraper struct {
 	PkgPath, PkgName string
