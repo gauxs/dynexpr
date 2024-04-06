@@ -11,7 +11,7 @@ Expression builder for dynamo DB.
 ## Install
 
 ```shell
-go get github.com/gauxs/dynexpr && go install github.com/gauxs/dynexpr/...@latest
+go get github.com/gauxs/dynexpr/pkg/codegen && go install github.com/gauxs/dynexpr/...@latest
 ```
 
 **Note:** Dynexpr uses [Go Modules](https://go.dev/wiki/Modules) to manage dependencies.
